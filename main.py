@@ -11,6 +11,7 @@ from modules.dev_to_write import publish_to_devto, read_blog_file
 from datetime import datetime
 import json
 import os
+import config
 
 articles = scrape_all()
 
@@ -25,11 +26,14 @@ output = {
 }
 
 print(json.dumps(output,indent=2))
-with open("raw_files/tech_news.json","w") as f:
-    json.dump(output,f,indent=2)
-print("Output saved")
-with open("raw_files/tech_news.json", "r") as f:
-    data = json.load(f)
+if config.SAVE_FILES:
+    with open("raw_files/tech_news.json","w") as f:
+        json.dump(output,f,indent=2)
+    print("Output saved")
+    with open("raw_files/tech_news.json", "r") as f:
+        data = json.load(f)
+else:
+    data = output
 
 existing = load_previous_articles("raw_files/processed_Articles.json")
 existing_titles = [a.get("topic", "") for a in existing]
@@ -59,13 +63,17 @@ output = {
     "articles_for_analysis": top_5
 }
 
-with open("raw_files/gemini_input.json", "w") as f:
-    json.dump(output, f, indent=2)
+if config.SAVE_FILES:
+    with open("raw_files/gemini_input.json", "w") as f:
+        json.dump(output, f, indent=2)
+    print("Saved top 5 articles to gemini_input.json")
 
-print("Saved top 5 articles to gemini_input.json")
+if config.SAVE_FILES:
+    with open("raw_files/gemini_input.json", "r") as f:
+        top_5 = json.load(f)
+else:
+    top_5 = {"generated_at": output["generated_at"], "articles_for_analysis": top_5}
 
-with open("raw_files/gemini_input.json", "r") as f:
-    top_5 =  json.load(f)
 top_5_articles = top_5["articles_for_analysis"]
 ranked_topics = rank_topics(top_5_articles)
 top_topic = ranked_topics[0]
@@ -80,15 +88,18 @@ research = research_topic(top_topic)
 output = {
     "generated_at": top_5["generated_at"],
     "topic": top_topic,
-    "source_link": top_article["source_link"], #type: ignore
+    "source_link": top_article["source_link"],  # type: ignore
     "research": research
 }
-OUTPUT_FILE = "raw_files/processed_Articles.json"
 
-with open(OUTPUT_FILE, "w") as f:
-    json.dump(output, f, indent=2)
+if config.SAVE_FILES:
+    OUTPUT_FILE = "raw_files/processed_Articles.json"
+    with open(OUTPUT_FILE, "w") as f:
+        json.dump(output, f, indent=2)
 
-save_processed_topic(top_topic)
+if config.SAVE_FILES:
+    save_processed_topic(top_topic)
+
 print(f"Research completed for topic: {top_topic}")
 
 print("\n" + "="*50)
@@ -109,22 +120,28 @@ blog_content, generated_at = generate_blog(output)
 if blog_content:
     output_path = save_blog(blog_content, top_topic, generated_at)
     print(f"\n✓ Blog successfully generated!")
-    print(f"  Saved to: {output_path}")
+    if config.SAVE_FILES:
+        print(f"  Saved to: {output_path}")
     
     print("\n" + "="*50)
     print("Publishing to Hashnode...")
     print("="*50)
     
-    title = read_title_file()
-    blog_content = read_blog_file()
-    tags = extract_tags(blog_content) if blog_content else []
+    if config.SAVE_FILES:
+        blog_title = read_title_file()
+        blog_content_for_pub = read_blog_file()
+    else:
+        blog_title = title
+        blog_content_for_pub = blog_content
     
-    if title:
-        print(f"\nTitle: {title}")
+    tags = extract_tags(blog_content_for_pub) if blog_content_for_pub else []
+    
+    if blog_title:
+        print(f"\nTitle: {blog_title}")
     if tags:
         print(f"Tags: {tags}")
     
-    result = publish_to_hashnode(title, blog_content, tags)
+    result = publish_to_hashnode(blog_title, blog_content_for_pub, tags)
     if result:
         print(f"\n[OK] Successfully published to Hashnode!")
         print(f"  URL: {result.get('url')}")
@@ -133,7 +150,7 @@ if blog_content:
     print("Publishing to Dev.to...")
     print("="*50)
     
-    devto_result = publish_to_devto(title, blog_content, tags)
+    devto_result = publish_to_devto(blog_title, blog_content_for_pub, tags)
     if devto_result:
         print(f"\n[OK] Successfully published to Dev.to!")
         print(f"  URL: {devto_result.get('url')}")

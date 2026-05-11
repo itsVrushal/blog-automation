@@ -2,6 +2,7 @@ import json
 import os
 from google import genai
 from dotenv import load_dotenv
+import config
 
 load_dotenv()
 
@@ -86,7 +87,7 @@ Guidelines:
 - Target 2000-3000 words minimum
 - Output ONLY the blog content, no title at the start, no explanations"""
 
-    response = client.models.generate_content(model="gemini-3-flash-preview", contents=prompt)
+    response = client.models.generate_content(model="gemini-3.1-pro-preview", contents=prompt)
     if not response.text:
         print(f"Warning: Empty response from Gemini for blog generation.")
         return None, None
@@ -101,9 +102,12 @@ def save_title(title, topic):
 
     title_path = os.path.join(OUTPUT_DIR, f"{safe_topic}_title.md")
     
-    with open(title_path, "w", encoding="utf-8") as f:
-        f.write(title.strip())
-    print(f"Title saved to: {title_path}")
+    if config.SAVE_FILES:
+        with open(title_path, "w", encoding="utf-8") as f:
+            f.write(title.strip())
+        print(f"Title saved to: {title_path}")
+    else:
+        print(f"Title generated (not saved): {title.strip()}")
     
     return title_path
 
@@ -114,22 +118,25 @@ def save_blog(blog_content, topic, generated_at):
         safe_topic = "blog_post"
 
     blog_path = os.path.join(OUTPUT_DIR, f"{safe_topic}_blog.md")
-    json_path = os.path.join(OUTPUT_DIR, f"{safe_topic}_blog.json")
 
-    with open(blog_path, "w", encoding="utf-8") as f:
-        f.write(blog_content)
-    print(f"Blog saved to: {blog_path}")
+    if config.SAVE_FILES:
+        with open(blog_path, "w", encoding="utf-8") as f:
+            f.write(blog_content)
+        print(f"Blog saved to: {blog_path}")
 
-    blog_data = {
-        "topic": topic,
-        "generated_at": generated_at,
-        "title_file": f"{safe_topic}_title.md",
-        "blog_file": f"{safe_topic}_blog.md",
-        "saved_at": str(blog_path)
-    }
-    with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(blog_data, f, indent=2)
-    print(f"Blog metadata saved to: {json_path}")
+        blog_data = {
+            "topic": topic,
+            "generated_at": generated_at,
+            "title_file": f"{safe_topic}_title.md",
+            "blog_file": f"{safe_topic}_blog.md",
+            "saved_at": str(blog_path)
+        }
+        json_path = os.path.join(OUTPUT_DIR, f"{safe_topic}_blog.json")
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(blog_data, f, indent=2)
+        print(f"Blog metadata saved to: {json_path}")
+    else:
+        print(f"Blog generated (not saved to file)")
 
     return blog_path
 

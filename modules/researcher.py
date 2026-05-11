@@ -68,7 +68,7 @@ def call_nvidia(prompt, max_tokens=512):
     return result["choices"][0]["message"]["content"]
 
 
-def call_gemini(prompt, model="gemini-2.5-flash"):
+def call_gemini(prompt, model="gemini-3.1-pro-preview"):
     response = client.models.generate_content(model=model, contents=prompt)
     if response.text:
         return response.text
